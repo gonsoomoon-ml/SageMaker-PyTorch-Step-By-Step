@@ -1,6 +1,9 @@
 import logging, sys, os
 import numpy as np
 
+from PIL import Image
+import io
+
 import torch
 import torch.distributed as dist
 import torch.nn as nn
@@ -13,7 +16,10 @@ import torchvision
 import torchvision.models
 import torchvision.transforms as transforms
 
+import subprocess
 
+subprocess.call(['pip', 'install', 'sagemaker_inference'])
+from sagemaker_inference import content_types, decoder
 
 # src 폴더 안에 훈련 코드(예: 클래스 정의)가 있어서 경로를 Path에 추가 함
 
@@ -58,21 +64,9 @@ def _get_logger():
 
 logger = _get_logger()
 
-# def model_fn(model_dir):
-#     logger.info("model_fn")
-#     device = "cuda" if torch.cuda.is_available() else "cpu"
-#     Net = get_model_network()
-#     model = Net()
 
-#     if torch.cuda.device_count() > 1:
-#         logger.info("Gpu count: {}".format(torch.cuda.device_count()))
-#         model = nn.DataParallel(model)
-
-#     with open(os.path.join(model_dir, "model.pth"), "rb") as f:
-#         model.load_state_dict(torch.load(f))
-#     return model.to(device)
-
-
+# 파이토치 서브의 디폴트 model_fn, input_fn 코드
+# https://github.com/aws/sagemaker-pytorch-inference-toolkit/blob/master/src/sagemaker_pytorch_serving_container/default_pytorch_inference_handler.py
 
 def model_fn(model_dir):
     logger.info("--> model_dir : {}".format(model_dir))
@@ -80,9 +74,9 @@ def model_fn(model_dir):
     print("device: ", device)
     Net = get_model_network()
     model = Net()
-
     
-    model = Net()
+    logger.info("--> model network is loaded")    
+
     if torch.cuda.device_count() > 1:
         logger.info("Gpu count: {}".format(torch.cuda.device_count()))
         model = nn.DataParallel(model)
@@ -90,32 +84,49 @@ def model_fn(model_dir):
     model_file_path = os.path.join(model_dir, "model.pth")
     print("model_file_path: ", model_file_path)                      
         
-    with open(model_file_path, "rb") as f:
-        model.load_state_dict(torch.load(f))
-    logger.info("---> Model is loaded")
+
+        
+    try:    
+        with open(model_file_path, "rb") as f:
+            model.load_state_dict(torch.load(f))
+        logger.info("---> ####### Model is loaded #########")
+    except:
+        # 디버깅에만 sleep을 사용하세요.
+        import time
+        logger.info("---> ########## Failure loading a Model #######")
+        # time.sleep(600) # 디버깅을 위해서 10분 정지            
+           
         
     return model.to(device)
 
-
 def input_fn(input_data, content_type):
+    '''
+    content_type == 'application/x-npy' 일시에 토치 텐서의 변환 작업 수행
+    '''
+    logger.info("#### input_fn starting ######")
+    logger.info(f"content_type: {content_type}")    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#    np_array = encoders.decode(input_data, content_type)
-#     np_array = encoder.decode(input_data, content_type)    
-    if content_type == 'application/x-image':             
-        img = np.array(Image.open(io.BytesIO(input_data)))
-    elif content_type == 'application/x-npy':    
-        img = np.frombuffer(input_data, dtype='uint8')
-    else:
-        raise ValueError(
-            'Requested unsupported ContentType in content_type : ' + content_type)
+                
+    
+    if isinstance(input_data, (np.ndarray)):
+        np_array = input_data # 로컬에서 테스트시에 numpy.ndarray 로 제공 되는 경우
+    else: # 토치 서브를 통해서 numpy.ndarray가 제공되면, IOByte( 확인 필요) 로 제공되기에 디코딩이 필요함.
+        np_array = decoder.decode(input_data, content_type)
+        
+    
+    logger.info(f"np_array shape: {np_array.shape}  ")
+    
+    
+    tensor = torch.FloatTensor(
+            np_array) if content_type in content_types.UTF8_TYPES else torch.from_numpy(np_array)
+    
 
-
-    # tensor = torch.FloatTensor(np_array) if content_type in content_types.UTF8_TYPES else torch.from_numpy(np_array)
-    tensor =  torch.from_numpy(img)    
-    return tensor.to(device)
+    return tensor.to(device)    
+    
 
 
 def predict_fn(data, model):
+    logger.info("#### predict_fn starting ######")    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     input_data = data.to(device)
@@ -123,58 +134,5 @@ def predict_fn(data, model):
     with torch.no_grad():
         output = model(input_data)
     return output
-
-
-# 대근님 소스
-
-# # Deserialize the request body
-# def input_fn(request_body, request_content_type='application/x-image'):
-#     print('An input_fn that loads a image tensor')
-#     print(request_content_type)
-#     if request_content_type == 'application/x-image':             
-#         img = np.array(Image.open(io.BytesIO(request_body)))
-#     elif request_content_type == 'application/x-npy':    
-#         img = np.frombuffer(request_body, dtype='uint8').reshape(137, 236)   
-#     else:
-#         raise ValueError(
-#             'Requested unsupported ContentType in content_type : ' + request_content_type)
-
-#     img = 255 - img
-#     img = img[:,:,np.newaxis]
-#     img = np.repeat(img, 3, axis=2)    
-
-#     test_transforms = transforms.Compose([
-#         transforms.ToTensor()
-#     ])
-
-#     img_tensor = test_transforms(img)
-
-#     return img_tensor         
-
-
-
-# # Predicts on the deserialized object with the model from model_fn()
-# def predict_fn(input_data, model):
-#     logger.info('Entering the predict_fn function')
-#     start_time = time.time()
-#     input_data = input_data.unsqueeze(0)
-#     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#     model.to(device)
-#     model.eval()
-#     input_data = input_data.to(device)
-                          
-#     result = {}
-                                                 
-#     with torch.no_grad():
-#         logits = model(input_data)
-#         pred_probs = F.softmax(logits, dim=1).data.squeeze()   
-#         outputs = topk(pred_probs, 5)                  
-#         result['score'] = outputs[0].detach().cpu().numpy()
-#         result['class'] = outputs[1].detach().cpu().numpy()
-    
-#     print("--- Elapsed time: %s secs ---" % (time.time() - start_time))    
-#     return result        
-
-
 
 
