@@ -15,37 +15,12 @@ import torch.utils.data.distributed
 import torchvision
 import torchvision.models
 import torchvision.transforms as transforms
+from model_def import Net
 
 import subprocess
 
 subprocess.call(['pip', 'install', 'sagemaker_inference'])
 from sagemaker_inference import content_types, decoder
-
-# src 폴더 안에 훈련 코드(예: 클래스 정의)가 있어서 경로를 Path에 추가 함
-
-def get_model_network():
-    '''
-    참조: https://github.com/pytorch/tutorials/blob/master/beginner_source/blitz/cifar10_tutorial.py#L118
-    '''    
-    class Net(nn.Module):
-        def __init__(self):
-            super(Net, self).__init__()
-            self.conv1 = nn.Conv2d(3, 6, 5)
-            self.pool = nn.MaxPool2d(2, 2)
-            self.conv2 = nn.Conv2d(6, 16, 5)
-            self.fc1 = nn.Linear(16 * 5 * 5, 120)
-            self.fc2 = nn.Linear(120, 84)
-            self.fc3 = nn.Linear(84, 10)
-
-        def forward(self, x):
-            x = self.pool(F.relu(self.conv1(x)))
-            x = self.pool(F.relu(self.conv2(x)))
-            x = x.view(-1, 16 * 5 * 5)
-            x = F.relu(self.fc1(x))
-            x = F.relu(self.fc2(x))
-            x = self.fc3(x)
-            return x
-    return Net
 
 
 
@@ -68,34 +43,38 @@ logger = _get_logger()
 # 파이토치 서브의 디폴트 model_fn, input_fn 코드
 # https://github.com/aws/sagemaker-pytorch-inference-toolkit/blob/master/src/sagemaker_pytorch_serving_container/default_pytorch_inference_handler.py
 
+import logging
 def model_fn(model_dir):
     logger.info("--> model_dir : {}".format(model_dir))
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("device: ", device)
-    Net = get_model_network()
+    
     model = Net()
     
     logger.info("--> model network is loaded")    
 
-    if torch.cuda.device_count() > 1:
-        logger.info("Gpu count: {}".format(torch.cuda.device_count()))
-        model = nn.DataParallel(model)
+#     if torch.cuda.device_count() > 1:
+#         logger.info("Gpu count: {}".format(torch.cuda.device_count()))
+#         model = nn.DataParallel(model)
+
+    # 디폴트로 DataParallel 를 기술함.
+    # 이유는 weight 이름 앞에 module 을 붙이기 위해서 임
+    model = nn.DataParallel(model)        
         
     model_file_path = os.path.join(model_dir, "model.pth")
     print("model_file_path: ", model_file_path)                      
         
-
         
     try:    
         with open(model_file_path, "rb") as f:
             model.load_state_dict(torch.load(f))
         logger.info("---> ####### Model is loaded #########")
-    except:
+    except BaseException:
+        logging.exception("An exception was thrown!")        
+        logger.info("---> ########## Failure loading a Model #######")        
         # 디버깅에만 sleep을 사용하세요.
-        import time
-        logger.info("---> ########## Failure loading a Model #######")
+        # import time
         # time.sleep(600) # 디버깅을 위해서 10분 정지            
-           
         
     return model.to(device)
 

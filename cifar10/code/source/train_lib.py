@@ -13,17 +13,11 @@ import torch.utils.data.distributed
 import torchvision
 import torchvision.models
 import torchvision.transforms as transforms
+from model_def import Net
 
 import sys
 import json
 
-# try:
-#     from sagemaker_inference import environment
-# except:
-#     from sagemaker_training import environment
-
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
 
 def _get_logger():
     '''
@@ -44,51 +38,9 @@ logger = _get_logger()
 classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck")
 
 
-def get_model_network():
-    '''
-    참조: https://github.com/pytorch/tutorials/blob/master/beginner_source/blitz/cifar10_tutorial.py#L118
-    '''    
-    class Net(nn.Module):
-        def __init__(self):
-            super(Net, self).__init__()
-            self.conv1 = nn.Conv2d(3, 6, 5)
-            self.pool = nn.MaxPool2d(2, 2)
-            self.conv2 = nn.Conv2d(6, 16, 5)
-            self.fc1 = nn.Linear(16 * 5 * 5, 120)
-            self.fc2 = nn.Linear(120, 84)
-            self.fc3 = nn.Linear(84, 10)
-
-        def forward(self, x):
-            x = self.pool(F.relu(self.conv1(x)))
-            x = self.pool(F.relu(self.conv2(x)))
-            x = x.view(-1, 16 * 5 * 5)
-            x = F.relu(self.fc1(x))
-            x = F.relu(self.fc2(x))
-            x = self.fc3(x)
-            return x
-    return Net
-
-
 def train(args):
     is_distributed = len(args.hosts) > 1 and args.dist_backend is not None
     logger.debug("Distributed training - {}".format(is_distributed))
-    is_distributed = False
-
-    if is_distributed:
-        # Initialize the distributed environment.
-        world_size = len(args.hosts)
-        os.environ["WORLD_SIZE"] = str(world_size)
-        host_rank = args.hosts.index(args.current_host)
-        os.environ["RANK"] = str(host_rank)
-        dist.init_process_group(backend=args.dist_backend, rank=host_rank, world_size=world_size)
-        logger.info(
-            "Initialized the distributed environment: '{}' backend on {} nodes. ".format(
-                args.dist_backend, dist.get_world_size()
-            )
-            + "Current host rank is {}. Using cuda: {}. Number of gpus: {}".format(
-                dist.get_rank(), torch.cuda.is_available(), args.num_gpus
-            )
-        )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info("Device Type: {}".format(device))
@@ -112,14 +64,19 @@ def train(args):
         testset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers
     )
 
-    logger.info("Model loaded")
-#     model = Net()
-    Net = get_model_network()
-    model = Net()
+    logger.info("Model loaded from get_model_network()")
+    
+    
+    model = Net() # 사용자 모델
+    
 
-    if torch.cuda.device_count() > 1:
-        logger.info("Gpu count: {}".format(torch.cuda.device_count()))
-        model = nn.DataParallel(model)
+#     if torch.cuda.device_count() > 1:
+#         logger.info("Gpu count: {}".format(torch.cuda.device_count()))
+#         model = nn.DataParallel(model)    
+
+    ## 코드를 DataParallel 로 실행
+    model = nn.DataParallel(model)            
+
 
     model = model.to(device)
 
@@ -157,6 +114,9 @@ def _save_model(model, model_dir):
     path = os.path.join(model_dir, "model.pth")
     # recommended way from http://pytorch.org/docs/master/notes/serialization.html
     torch.save(model.cpu().state_dict(), path)
+
+
+
 
 
 

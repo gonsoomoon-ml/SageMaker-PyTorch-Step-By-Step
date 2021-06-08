@@ -4,8 +4,6 @@ import json
 
 from train_lib import train
 
-if __name__ =='__main__':
-    parser = argparse.ArgumentParser()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
