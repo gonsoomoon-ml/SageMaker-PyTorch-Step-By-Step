@@ -24,9 +24,9 @@ class Net(nn.Module):
         x = self.fc3(x)
             
         # 아래는 원본 네트워크 대비 수정 내역
-        x = F.dropout(x, training=self.training)            
-        return F.log_softmax(x, dim=1)
+#         x = F.dropout(x, training=self.training)            
+#         return F.log_softmax(x, dim=1)
             
-            # return x
+        return x
 
 
