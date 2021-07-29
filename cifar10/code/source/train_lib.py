@@ -39,20 +39,27 @@ classes = ("plane", "car", "bird", "cat", "deer", "dog", "frog", "horse", "ship"
 
 
 def train(args):
-    is_distributed = len(args.hosts) > 1 and args.dist_backend is not None
-    logger.debug("Distributed training - {}".format(is_distributed))
 
+    # devie  결정
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info("Device Type: {}".format(device))
 
-    logger.info("Loading Cifar10 dataset")
+    logger.info("###### Loading Cifar10 dataset")
+    
+    ####################################
+    # 데이터 준비
+    ####################################    
+    
+    # 노멀라이즈 변형기 생성
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
 
+    # 훈련 데이터 세트 로딩
     trainset = torchvision.datasets.CIFAR10(
         root=args.data_dir, train=True, download=False, transform=transform
     )
+    # 훈련 데이터 로더 생성
     train_loader = torch.utils.data.DataLoader(
         trainset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers
     )
@@ -63,26 +70,31 @@ def train(args):
     test_loader = torch.utils.data.DataLoader(
         testset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers
     )
-
-    logger.info("Model loaded from get_model_network()")
     
+    ####################################
+    # 모델 네트워크 준비
+    ####################################        
     
-    model = Net() # 사용자 모델
+    # 사용자 정의 모델 네트워크 로딩
+    model = Net() 
+    logger.info("Model network loaded from get_model_network()")    
     
-
-#     if torch.cuda.device_count() > 1:
-#         logger.info("Gpu count: {}".format(torch.cuda.device_count()))
-#         model = nn.DataParallel(model)    
-
     ## 코드를 DataParallel 로 실행
     model = nn.DataParallel(model)            
 
-
+    # 모델을 디바이스에 할당
     model = model.to(device)
 
+    ####################################
+    # 모델 훈련 준비
+    ####################################            
+    
+    # 로스 함수 및 옵티마이저 생성
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
+    # 주어진 epochs  만큼 훈련 실행
+    logger.info(f"Training starts until epochs of {args.epochs}")    
     for epoch in range(0, args.epochs):
         running_loss = 0.0
         for i, data in enumerate(train_loader):
@@ -105,7 +117,12 @@ def train(args):
                 print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
                 #break # 2000 미니 배치만 실행
-    print("Finished Training")
+    print("Training is finished")
+    
+    ####################################
+    # 모델 아티펙트 저장 및 완료
+    ####################################                
+    
     return _save_model(model, args.model_dir)
 
 
@@ -225,8 +242,8 @@ def _load_checkpoint(model, optimizer, args):
 
 
 def _save_model(model, model_dir):
-    logger.info("Saving the model.")
     path = os.path.join(model_dir, "model.pth")
+    logger.info(f"the model is saved at {path}")    
     # recommended way from http://pytorch.org/docs/master/notes/serialization.html
     torch.save(model.cpu().state_dict(), path)
 

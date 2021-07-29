@@ -68,7 +68,8 @@ def model_fn(model_dir):
     try:    
         with open(model_file_path, "rb") as f:
             model.load_state_dict(torch.load(f))
-        logger.info("---> ####### Model is loaded #########")
+        print("####### Model is loaded #########")        
+
     except BaseException:
         logging.exception("An exception was thrown!")        
         logger.info("---> ########## Failure loading a Model #######")        

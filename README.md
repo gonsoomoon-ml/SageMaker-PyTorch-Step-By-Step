@@ -120,5 +120,9 @@ Cifar10 이미지를 이용하여 아래와 같은 부분을 배울 수 있습�
     - Pytorch 로컬 모드
         - https://github.com/aws-samples/amazon-sagemaker-local-mode/blob/main/pytorch_script_mode_local_training_and_serving/pytorch_script_mode_local_training_and_serving.py    
 
+
 - Pytorch weight 저장에 대해 우리가 알아야하는 모든 것
     - https://comlini8-8.tistory.com/50
+    
+- Pytorch Dataset과 Dataloader 및 Sampler    
+    - https://gaussian37.github.io/dl-pytorch-dataset-and-dataloader/    

@@ -8,6 +8,10 @@ from train_lib import train
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
+    ##################################
+    #### 사용자 정의 커맨드 인자
+    ##################################
+    
     parser.add_argument(
         "--workers",
         type=int,
@@ -39,41 +43,27 @@ if __name__ == "__main__":
         "--dist_backend", type=str, default="gloo", help="distributed backend (default: gloo)"
     )
     
-    # print("os: \n", os.environ)
+    ##################################
+    #### 세이지 메이커 프레임워크의 도커 컨테이너 환경 변수 인자
+    ##################################
 
-    #env = environment.Environment()
-    #parser.add_argument("--hosts", type=list, default=env.hosts)
-#     parser.add_argument("--current-host", type=str, default=env.current_host)
-#    parser.add_argument("--data-dir", type=str, default=env.channel_input_dirs.get("training"))
-
-####### 스크립트 모드
-    #parser.add_argument("--data_dir", type=str, default="Data")    
     parser.add_argument('--data-dir', type=str, default=os.environ['SM_CHANNEL_TRAINING'])
     
-    
-#    parser.add_argument("--num_gpus", type=int, default=1)
     parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])    
     
-#    parser.add_argument("--model_dir", type=str, default="model")    
     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])    
-    
-#    parser.add_argument("--current-host", type=str, default=os.environ["HOST"])    
+       
     parser.add_argument('--current-host', type=str, default=os.environ['SM_CURRENT_HOST'])
     
-#    parser.add_argument("--hosts", type=list, default=os.environ["HOST"])    
     parser.add_argument('--hosts', type=list, default=json.loads(os.environ['SM_HOSTS']))
-
-#     parser.add_argument('--dist_backend', type=str, default='gloo', help='distributed backend (default: gloo)')
-
-
-#     parser.add_argument('--current-host', type=str, default=os.environ['SM_CURRENT_HOST'])
-#     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
-#     parser.add_argument('--data-dir', type=str, default=os.environ['SM_CHANNEL_TRAINING'])
-#     parser.add_argument('--num-gpus', type=int, default=os.environ['SM_NUM_GPUS'])
 
     
     # parse arguments
     args = parser.parse_args() 
+    
+    ##################################
+    #### 훈련 함수 콜
+    ##################################
     
     train(args)
     
