@@ -23,9 +23,11 @@ Cifar10 이미지를 이용하여 아래와 같은 부분을 배울 수 있습�
     
     
 - Horobod로 분산 훈련
+    - 로컬 모드로 훈련을 하고, 이후에 2개의 인스턴스로 호스트 모드에서 훈련 합니다.
 
 
-- 세이지 메이커 Distributed Data Parallel 로 훈련
+- 세이지 메이커 Distributed Data Parallel 로 분산 훈련
+    - 현재 작업 중입니다.
 
 
 - 사용자 정의의 inference code 작성
@@ -54,10 +56,10 @@ Cifar10 이미지를 이용하여 아래와 같은 부분을 배울 수 있습�
         - 세이지 메이커의 로컬 및  스크립트 모드로 훈련
     - [옵션] 1.3.Train_Spot_Checkpoint.ipynb
         - 체크 포인트를 이용한 스팟 인스턴스로 훈련
-    - 현재 작업 중 : [옵션] 1.6.Train_Horovod.ipynb        
+    - [옵션] 1.6.Train_Horovod.ipynb        
         - 호로 보드를 통한 분산 훈련
     - 현재 작업 중[옵션] 1.7.Train_DDP.ipynb        
-        - 세이지 메이커 Distributed Data Parallel 로 훈련
+        - 세이지 메이커 Distributed Data Parallel 로 분산 훈련
     - [옵션] 2.1.Inference-Scratch.ipynb
         - 세이지 메이커의 로컬 엔드 포인트 생성
     - [필수] 2.2.Inference-SageMaker.ipynb
