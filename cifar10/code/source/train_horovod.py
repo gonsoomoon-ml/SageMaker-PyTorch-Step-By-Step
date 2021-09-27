@@ -120,6 +120,11 @@ import horovod.torch as hvd
 
 def train_horovod(args):
     
+    ###############################
+    # 커맨드 인자 출력
+    ###############################
+    logger.debug(f"args: {args}")
+    
     ##  Horovod: initialize library ##
     hvd.init()
         
@@ -179,19 +184,29 @@ def train_horovod(args):
     # Horovod: wrap optimizer with DistributedOptimizer.
     optimizer = hvd.DistributedOptimizer(optimizer, named_parameters=model.named_parameters())
 
+    ###############################
+    # 훈련 시작
+    ###############################
 
     for epoch in range(1, args.epochs + 1):
         model.train()
         for batch_idx, (data, target) in enumerate(train_loader, 1):
+            # logger.debug(f"batch_index: {batch_idx}")
+            
             data, target = data.cuda(), target.cuda()
             optimizer.zero_grad()
             output = model(data)
-            loss = F.nll_loss(output, target) # criterion = nn.CrossEntropyLoss().to(device) loss = criterion(outputs, labels) 이와 같이 crossentropy를 이용할 수도 있음.
+            criterion = nn.CrossEntropyLoss()        
+            loss = criterion(output, target) # 이와 같이 crossentropy를 이용할 수도 있음.
+            
             loss.backward()
             optimizer.step()
+            
+            
             if batch_idx % args.log_interval == 0:
+                
                 logger.info(
-                    "Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}".format(
+                    "Train Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.3f}".format(
                         epoch,
                         batch_idx * len(data),
                         len(train_loader.sampler),
