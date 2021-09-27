@@ -196,7 +196,11 @@ def train(args, model, device, train_loader, optimizer, epoch):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        loss = F.nll_loss(output, target)
+#         loss = F.nll_loss(output, target)
+        
+        criterion = nn.CrossEntropyLoss()        
+        loss = criterion(output, target) # 이와 같이 crossentropy를 이용할 수도 있음.
+        
         loss.backward()
         optimizer.step()
         if batch_idx % args.log_interval == 0 and dist.get_rank() == 0:
