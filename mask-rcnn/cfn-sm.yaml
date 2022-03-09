@@ -78,37 +78,18 @@ Parameters:
     Type: String
     Default: '/home/ec2-user/efs'
     ConstraintDescription: Should be a valid local file-system absolute directory path
-  GitHubUsername:
-    Description: GitHub username
-    Type: String
-  GitHubToken:
-    Description: GitHub Token
-    Type: String
-  CodeRepoName:
-    Description: Code Repository name
-    Type: String
-    Default: sagemaker-github-repo
-  GitHubRepoUrl:
-    Description: GitHub Repository Url
-    Type: String
-  GitHubRepoBranch:
-    Description: GitHub Repository branch
-    Type: String
-    Default: 'master'
   NotebookInstanceName:
     Description: SageMaker Notebook instance name
     Type: String
-    Default: 'sagemaker-notebook'
+    Default: 'sagemaker-notebook-vpc'
   S3BucketName:
     Description: SageMaker S3 Bucket Name
+    #AllowedPattern: '^[a-z0-9]{5,40}$'
     Type: String
+    ConstraintDescription: Should be a valid S3 bucket name 
 
 Conditions:
   CreateNewFileSystem: !Equals [ !Ref EFSFileSystemId, '']
-  CreateCodeRepo: !Not [!Equals [ !Ref GitHubRepoUrl, ''] ]
-  CreateGitHubRepoSecret: !And 
-    - !Not [ !Equals [!Ref GitHubToken, ''] ]
-    - !Not [ !Equals [!Ref GitHubUsername, ''] ]
 
 Resources:
   Vpc:
@@ -331,36 +312,6 @@ Resources:
       SubnetId: !Ref PrivateSubnet3
       SecurityGroups:
         - !Ref VpcSecurityGroup
-  GitHubRepoSecret:
-    Type: 'AWS::SecretsManager::Secret'
-    Condition: CreateGitHubRepoSecret
-    Properties:
-      Description: GitHub Sign In
-      SecretString: 
-        Fn::Join: 
-          - ''
-          - - '{'
-            - '"username":' 
-            - !Ref GitHubUsername
-            - ','
-            - '"password":'
-            - !Ref GitHubToken
-            - '}'
-      Tags:
-        - Key: Name
-          Value: !Ref 'AWS::StackName'
-  CodeRepo:
-    Type: AWS::SageMaker::CodeRepository
-    Condition: CreateCodeRepo
-    Properties: 
-      CodeRepositoryName: !Ref CodeRepoName
-      GitConfig: 
-        Branch: !Ref GitHubRepoBranch
-        RepositoryUrl: !Ref GitHubRepoUrl
-        SecretArn: !If 
-        - CreateGitHubRepoSecret
-        - !Ref GitHubRepoSecret
-        - !Ref 'AWS::NoValue'
   NotebookStartConfig:
     Type: AWS::SageMaker::NotebookInstanceLifecycleConfig
     Properties: 
@@ -403,10 +354,6 @@ Resources:
         - !GetAtt VpcSecurityGroup.GroupId
       SubnetId: !Ref PrivateSubnet1
       DirectInternetAccess: Disabled
-      AdditionalCodeRepositories: !If 
-        - CreateCodeRepo
-        - [!GetAtt CodeRepo.CodeRepositoryName]
-        - !Ref 'AWS::NoValue'
       LifecycleConfigName: !GetAtt NotebookStartConfig.NotebookInstanceLifecycleConfigName
       VolumeSizeInGB: !Ref EbsVolumeSize
       Tags:
@@ -426,6 +373,9 @@ Resources:
             Action: 
               - "sts:AssumeRole"
       Path: "/"
+      # 편의성을 위해서 AmazonS3FullAccess 를 넣었습니다. 실제 실무 적용시에는 삭제 해주세요.
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"      
       Policies: 
         - 
           PolicyName: "sagemaker-policy"
